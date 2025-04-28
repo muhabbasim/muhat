@@ -4,7 +4,7 @@ import { Outlet } from 'react-router-dom';
 
 const MainLayout: React.FC = () => {
   return (
-    <main className=' bg-img w-full bg-[#ffffff]'>
+    <main className='bg-img w-full bg-[#ffffff]'>
       <div>
         <Outlet />
       </div>
