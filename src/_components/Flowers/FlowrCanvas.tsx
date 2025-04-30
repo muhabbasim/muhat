@@ -1,14 +1,17 @@
-// src/components/FlowerCanvas/FlowerCanvas.tsx
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import styles from './style.module.css';
-import { fragmentShader, vertexShader } from './shaders.ts';
+import styles from './styles.module.css';
+import { fragmentShader, vertexShader } from './shaders';
 
 const FlowerCanvas = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isRendering, setIsRendering] = useState(true);
+  const [windowSize, setWindowSize] = useState({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  });
   
-  // Initialize scene variables with useRef to persist between renders
+  // Scene references
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const shaderSceneRef = useRef<THREE.Scene | null>(null);
   const mainSceneRef = useRef<THREE.Scene | null>(null);
@@ -27,6 +30,14 @@ const FlowerCanvas = () => {
   const backgroundColor = new THREE.Color(0xffffff);
   const isStartRef = useRef(true);
 
+  // Track window size changes
+  const trackWindowSize = () => {
+    setWindowSize({
+      width: window.innerWidth,
+      height: window.innerHeight,
+    });
+  };
+
   const initScene = () => {
     if (!canvasRef.current) return;
 
@@ -36,6 +47,7 @@ const FlowerCanvas = () => {
       alpha: true
     });
     rendererRef.current.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    rendererRef.current.setSize(windowSize.width, windowSize.height);
 
     // Create scenes
     shaderSceneRef.current = new THREE.Scene();
@@ -47,8 +59,8 @@ const FlowerCanvas = () => {
 
     // Create render targets
     renderTargetsRef.current = [
-      new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight),
-      new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight),
+      new THREE.WebGLRenderTarget(windowSize.width, windowSize.height),
+      new THREE.WebGLRenderTarget(windowSize.width, windowSize.height),
     ];
 
     const planeGeometry = new THREE.PlaneGeometry(2, 2);
@@ -56,7 +68,7 @@ const FlowerCanvas = () => {
     // Create shader material
     shaderMaterialRef.current = new THREE.ShaderMaterial({
       uniforms: {
-        u_ratio: { value: window.innerWidth / window.innerHeight },
+        u_ratio: { value: windowSize.width / windowSize.height },
         u_point: { value: new THREE.Vector2(pointerRef.current.x, pointerRef.current.y) },
         u_time: { value: 0 },
         u_stop_time: { value: 0 },
@@ -92,17 +104,28 @@ const FlowerCanvas = () => {
     mainSceneRef.current?.add(planeBasic);
   };
 
-  const updateSize = () => {
-    if (!shaderMaterialRef.current || !rendererRef.current) return;
+  // const updateSceneOnResize = () => {
+  //   if (!rendererRef.current || !shaderMaterialRef.current) return;
+
+  //   // Store current texture to preserve the scene
+  //   const currentTexture = basicMaterialRef.current?.map;
     
-    shaderMaterialRef.current.uniforms.u_ratio.value = window.innerWidth / window.innerHeight;
-    rendererRef.current.setSize(window.innerWidth, window.innerHeight);
+  //   // Update renderer size
+  //   rendererRef.current.setSize(windowSize.width, windowSize.height);
     
-    // Update render targets
-    renderTargetsRef.current.forEach(target => {
-      target.setSize(window.innerWidth, window.innerHeight);
-    });
-  };
+  //   // Update shader uniform
+  //   shaderMaterialRef.current.uniforms.u_ratio.value = windowSize.width / windowSize.height;
+    
+  //   // Resize render targets
+  //   renderTargetsRef.current.forEach(target => {
+  //     target.setSize(windowSize.width, windowSize.height);
+  //   });
+    
+  //   // Restore the texture if it exists
+  //   if (basicMaterialRef.current && currentTexture) {
+  //     basicMaterialRef.current.map = currentTexture;
+  //   }
+  // };
 
   const render = () => {
     if (!rendererRef.current || !shaderSceneRef.current || !mainSceneRef.current || 
@@ -164,20 +187,24 @@ const FlowerCanvas = () => {
       clientY = e.clientY;
     }
 
-    pointerRef.current.x = clientX / window.innerWidth;
-    pointerRef.current.y = clientY / window.innerHeight;
+    pointerRef.current.x = clientX / windowSize.width;
+    pointerRef.current.y = clientY / windowSize.height;
     pointerRef.current.clicked = true;
     setIsRendering(true);
   };
 
-  const toggleRendering = () => {
-    setIsRendering(prev => !prev);
-  };
+  useEffect(() => {
+    // Set up window resize listener
+    window.addEventListener('resize', trackWindowSize);
+    
+    return () => {
+      window.removeEventListener('resize', trackWindowSize);
+    };
+  }, []);
 
   useEffect(() => {
     // Initial setup
     initScene();
-    updateSize();
     
     // Demo flowers for initial display
     const timer1 = setTimeout(() => {
@@ -195,14 +222,10 @@ const FlowerCanvas = () => {
     // Start rendering loop
     render();
 
-    // Add event listeners
-    window.addEventListener('resize', updateSize);
-
     // Cleanup
     return () => {
       clearTimeout(timer1);
       clearTimeout(timer2);
-      window.removeEventListener('resize', updateSize);
       
       // Dispose of Three.js resources
       rendererRef.current?.dispose();
@@ -211,6 +234,11 @@ const FlowerCanvas = () => {
       renderTargetsRef.current.forEach(target => target.dispose());
     };
   }, []);
+
+  // This effect handles responsive updates when window size changes
+  useEffect(() => {
+    // updateSceneOnResize();
+  }, [windowSize]);
 
   return (
     <div className={styles.container}>
@@ -223,9 +251,7 @@ const FlowerCanvas = () => {
           <span>Click To Add Flowers</span>
         </div>
       </div>
-      <div className={styles.renderToggle} onClick={toggleRendering}>
-        {isRendering ? 'freeze' : 'unfreeze'}
-      </div>
+
     </div>
   );
 };
