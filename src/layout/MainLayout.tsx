@@ -4,11 +4,13 @@ import { Outlet } from 'react-router-dom';
 
 const MainLayout: React.FC = () => {
   return (
-    <main className='bg-img w-full bg-[#ffffff]'>
+    <main className='relative bg-imgx w-fullx bg-[#ffffff]x'>
       <div>
         <Outlet />
       </div>
-      <Footer />
+      <div className='fixed bottom-0 left-0 w-full'>
+        <Footer />
+      </div>
     </main>
   );
 };
